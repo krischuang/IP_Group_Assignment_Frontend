@@ -1,0 +1,131 @@
+$brand-red: #D93C3E
+
+.site-header
+  position: sticky
+  top: 0
+  z-index: 50
+  background: white
+  border-bottom: 1px solid #e5e7eb
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05)
+
+  .header-inner
+    max-width: 1200px
+    margin: 0 auto
+    padding: 0 1.5rem
+    display: flex
+    align-items: center
+    justify-content: space-between
+    height: 64px
+
+  .header-logo a
+    font-size: 1.5rem
+    font-weight: 800
+    color: $brand-red
+    letter-spacing: -0.5px
+
+  .header-nav
+    display: flex
+    align-items: center
+    gap: 0.5rem
+
+  .header-links
+    display: flex
+    gap: 0.25rem
+    list-style: none
+
+  .header-link
+    a
+      padding: 0.5rem 1rem
+      border-radius: 0.375rem
+      font-size: 0.875rem
+      font-weight: 500
+      color: #374151
+      transition: all 0.15s ease
+      display: block
+      &:hover
+        background: #f3f4f6
+        color: $brand-red
+    &.active a
+      background: rgba($brand-red, 0.08)
+      color: $brand-red
+
+  .header-auth
+    display: flex
+    gap: 0.5rem
+    margin-left: 1rem
+
+    .auth-link
+      padding: 0.5rem 1rem
+      border-radius: 0.375rem
+      font-size: 0.875rem
+      font-weight: 500
+      color: #374151
+      transition: all 0.15s ease
+      &:hover
+        background: #f3f4f6
+
+    .auth-link-primary
+      background: $brand-red
+      color: white
+      padding: 0.5rem 1.25rem
+      border-radius: 0.375rem
+      font-size: 0.875rem
+      font-weight: 600
+      transition: all 0.15s ease
+      &:hover
+        background: darken($brand-red, 8%)
+
+    .sign-out-btn
+      background: none
+      border: 1px solid #d1d5db
+      padding: 0.5rem 1rem
+      border-radius: 0.375rem
+      font-size: 0.875rem
+      font-weight: 500
+      color: #374151
+      cursor: pointer
+      transition: all 0.15s ease
+      &:hover
+        border-color: $brand-red
+        color: $brand-red
+
+  .mobile-menu-toggle
+    display: none
+    background: none
+    border: none
+    font-size: 1.5rem
+    cursor: pointer
+    padding: 0.5rem
+    color: #374151
+
+@media (max-width: 768px)
+  .site-header
+    .header-nav
+      display: none
+      &.open
+        display: flex
+        flex-direction: column
+        position: absolute
+        top: 64px
+        left: 0
+        right: 0
+        background: white
+        border-bottom: 1px solid #e5e7eb
+        padding: 1rem
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1)
+
+    .header-links
+      flex-direction: column
+      width: 100%
+
+    .header-link a
+      width: 100%
+
+    .header-auth
+      flex-direction: column
+      width: 100%
+      margin-left: 0
+      margin-top: 0.5rem
+
+    .mobile-menu-toggle
+      display: block
