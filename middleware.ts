@@ -1,6 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server'
-import { updateSession } from '@/util/supabase/middleware'
-import { createServerClient } from '@supabase/ssr'
+import { API_BASE } from '@/util/api/client'
 
 const PUBLIC = [
     '/',
@@ -15,24 +14,22 @@ const ADMIN_ONLY = [
     '/admin',
 ] as const
 
+function decodeJWTPayload(token: string): Record<string, any> | null {
+    try {
+        const [, payload] = token.split('.')
+        return JSON.parse(Buffer.from(payload, 'base64url').toString('utf-8'))
+    } catch {
+        return null
+    }
+}
+
+function isTokenExpired(payload: Record<string, any>): boolean {
+    if (!payload.exp) return false
+    return payload.exp < Math.floor(Date.now() / 1000)
+}
+
 export async function middleware(request: NextRequest) {
-    let response = await updateSession(request)
-
-    const supabase = createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        {
-            cookies: {
-                getAll: () => request.cookies.getAll(),
-                setAll: (toSet) =>
-                    toSet.forEach(({ name, value, options }) =>
-                        response.cookies.set(name, value, options)
-                    ),
-            },
-        }
-    )
-
-    const { data: { user } } = await supabase.auth.getUser()
+    const token = request.cookies.get('auth_token')?.value
 
     const rawPath = request.nextUrl?.pathname ?? '/'
     const normPath = rawPath !== '/' && rawPath.endsWith('/')
@@ -44,7 +41,15 @@ export async function middleware(request: NextRequest) {
         return normPath === base || normPath.startsWith(base + '/')
     })
 
-    if (!isPublic && !user) {
+    let payload: Record<string, any> | null = null
+    let isAuthenticated = false
+
+    if (token) {
+        payload = decodeJWTPayload(token)
+        isAuthenticated = !!payload && !isTokenExpired(payload)
+    }
+
+    if (!isPublic && !isAuthenticated) {
         const url = request.nextUrl.clone()
         url.pathname = '/sign-in'
         url.searchParams.set('redirect', encodeURIComponent(rawPath + request.nextUrl.search))
@@ -55,19 +60,29 @@ export async function middleware(request: NextRequest) {
         normPath === base || normPath.startsWith(base + '/')
     )
 
-    if (requiresAdmin && user) {
-        const { data: profile } = await supabase
-            .from('users')
-            .select('role')
-            .eq('id', user.id)
-            .single()
+    if (requiresAdmin && isAuthenticated) {
+        let role = payload?.role
 
-        if (!profile || profile.role !== 'admin') {
-            return NextResponse.redirect(new URL('/', request.url))
+        if (!role) {
+            try {
+                const res = await fetch(`${API_BASE}/auth/me`, {
+                    headers: { Authorization: `Bearer ${token}` },
+                })
+                if (res.ok) {
+                    const user = await res.json()
+                    role = user.role
+                }
+            } catch {
+                // if fetch fails, deny access
+            }
+        }
+
+        if (role?.toLowerCase() !== 'admin') {
+            return NextResponse.redirect(new URL('/home', request.url))
         }
     }
 
-    return response
+    return NextResponse.next()
 }
 
 export const config = {

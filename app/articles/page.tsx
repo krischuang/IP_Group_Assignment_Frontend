@@ -2,18 +2,18 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { supabaseClient } from '@/util/supabase/client'
 
 interface Article {
-    id: string
+    id: string | number
     title: string
     summary: string
     created_at: string
-    categories: { name: string } | null
+    category?: string | null
+    categories?: { name: string } | null
 }
 
 interface Category {
-    id: string
+    id: string | number
     name: string
 }
 
@@ -25,30 +25,26 @@ export default function ArticlesPage() {
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
-        async function fetchData() {
-            setLoading(true)
-            const [articlesRes, categoriesRes] = await Promise.all([
-                supabaseClient
-                    .from('articles')
-                    .select('id, title, summary, created_at, categories(name)')
-                    .eq('published', true)
-                    .order('created_at', { ascending: false }),
-                supabaseClient.from('categories').select('id, name'),
-            ])
-
-            if (articlesRes.data) setArticles(articlesRes.data as unknown as Article[])
-            if (categoriesRes.data) setCategories(categoriesRes.data as Category[])
-            setLoading(false)
-        }
-
-        fetchData()
+        Promise.all([
+            fetch('/api/articles?published=true').then((r) => r.json()),
+            fetch('/api/categories').then((r) => r.json()),
+        ])
+            .then(([articlesData, categoriesData]) => {
+                setArticles(Array.isArray(articlesData) ? articlesData : [])
+                setCategories(Array.isArray(categoriesData) ? categoriesData : [])
+            })
+            .catch(() => {})
+            .finally(() => setLoading(false))
     }, [])
 
+    function getCategoryName(article: Article) {
+        return article.category ?? article.categories?.name ?? null
+    }
+
     const filtered = articles.filter((a) => {
-        const matchesCategory =
-            !selectedCategory || a.categories?.name === selectedCategory
-        const matchesSearch =
-            !search || a.title.toLowerCase().includes(search.toLowerCase())
+        const catName = getCategoryName(a)
+        const matchesCategory = !selectedCategory || catName === selectedCategory
+        const matchesSearch = !search || a.title.toLowerCase().includes(search.toLowerCase())
         return matchesCategory && matchesSearch
     })
 
@@ -136,7 +132,6 @@ export default function ArticlesPage() {
                 </div>
             )}
 
-            {/* Article grid */}
             {!loading && filtered.length === 0 && (
                 <p className="py-16 text-center text-gray-500">
                     No articles found.
@@ -159,9 +154,9 @@ export default function ArticlesPage() {
                                 {truncate(article.summary, 120)}
                             </p>
                             <div className="flex items-center justify-between">
-                                {article.categories?.name && (
+                                {getCategoryName(article) && (
                                     <span className="rounded-full bg-blue-50 px-3 py-0.5 text-xs font-medium text-blue-700">
-                                        {article.categories.name}
+                                        {getCategoryName(article)}
                                     </span>
                                 )}
                                 <span className="text-xs text-gray-400">

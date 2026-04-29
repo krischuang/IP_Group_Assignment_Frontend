@@ -3,16 +3,17 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
-import { supabaseClient } from '@/util/supabase/client'
 
 interface Article {
-    id: string
+    id: string | number
     title: string
     content: string
     summary: string
     created_at: string
-    categories: { name: string } | null
-    users: { full_name: string; email: string } | null
+    category?: string | null
+    categories?: { name: string } | null
+    author_name?: string | null
+    users?: { full_name: string; email: string } | null
 }
 
 function renderMarkdown(text: string) {
@@ -69,9 +70,7 @@ function formatInline(text: string) {
     let match: RegExpExecArray | null
 
     while ((match = regex.exec(text)) !== null) {
-        if (match.index > last) {
-            parts.push(text.slice(last, match.index))
-        }
+        if (match.index > last) parts.push(text.slice(last, match.index))
         if (match[2]) {
             parts.push(
                 <strong key={match.index} className="font-semibold text-gray-900">
@@ -91,10 +90,7 @@ function formatInline(text: string) {
         last = match.index + match[0].length
     }
 
-    if (last < text.length) {
-        parts.push(text.slice(last))
-    }
-
+    if (last < text.length) parts.push(text.slice(last))
     return <>{parts}</>
 }
 
@@ -106,25 +102,23 @@ export default function ArticlePage() {
 
     useEffect(() => {
         if (!id) return
-
-        async function fetchArticle() {
-            setLoading(true)
-            const { data, error: fetchError } = await supabaseClient
-                .from('articles')
-                .select('*, categories(name), users(full_name, email)')
-                .eq('id', id)
-                .single()
-
-            if (fetchError) {
-                setError(fetchError.message)
-            } else {
-                setArticle(data as unknown as Article)
-            }
-            setLoading(false)
-        }
-
-        fetchArticle()
+        fetch(`/api/articles/${id}`)
+            .then(async (r) => {
+                if (!r.ok) throw new Error('Article not found')
+                return r.json()
+            })
+            .then(setArticle)
+            .catch((e) => setError(e.message))
+            .finally(() => setLoading(false))
     }, [id])
+
+    function getCategoryName(a: Article) {
+        return a.category ?? a.categories?.name ?? null
+    }
+
+    function getAuthorName(a: Article) {
+        return a.author_name ?? a.users?.full_name ?? null
+    }
 
     function formatDate(iso: string) {
         return new Date(iso).toLocaleDateString('en-AU', {
@@ -145,11 +139,9 @@ export default function ArticlePage() {
                         <div className="h-5 w-32 rounded bg-gray-200" />
                     </div>
                     <div className="space-y-3 pt-6">
-                        <div className="h-4 w-full rounded bg-gray-200" />
-                        <div className="h-4 w-full rounded bg-gray-200" />
-                        <div className="h-4 w-5/6 rounded bg-gray-200" />
-                        <div className="h-4 w-full rounded bg-gray-200" />
-                        <div className="h-4 w-2/3 rounded bg-gray-200" />
+                        {Array.from({ length: 5 }).map((_, i) => (
+                            <div key={i} className="h-4 w-full rounded bg-gray-200" />
+                        ))}
                     </div>
                 </div>
             </section>
@@ -159,13 +151,8 @@ export default function ArticlePage() {
     if (error || !article) {
         return (
             <section className="mx-auto max-w-3xl px-4 py-12 text-center">
-                <p className="mb-4 text-gray-500">
-                    {error ?? 'Article not found.'}
-                </p>
-                <Link
-                    href="/articles"
-                    className="text-sm font-medium text-blue-600 hover:underline"
-                >
+                <p className="mb-4 text-gray-500">{error ?? 'Article not found.'}</p>
+                <Link href="/articles" className="text-sm font-medium text-blue-600 hover:underline">
                     &larr; Back to articles
                 </Link>
             </section>
@@ -186,14 +173,12 @@ export default function ArticlePage() {
             </h1>
 
             <div className="mb-8 flex flex-wrap items-center gap-3 text-sm text-gray-500">
-                {article.categories?.name && (
+                {getCategoryName(article) && (
                     <span className="rounded-full bg-blue-50 px-3 py-0.5 text-xs font-medium text-blue-700">
-                        {article.categories.name}
+                        {getCategoryName(article)}
                     </span>
                 )}
-                {article.users?.full_name && (
-                    <span>By {article.users.full_name}</span>
-                )}
+                {getAuthorName(article) && <span>By {getAuthorName(article)}</span>}
                 <span>{formatDate(article.created_at)}</span>
             </div>
 

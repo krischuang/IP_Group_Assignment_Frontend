@@ -2,14 +2,14 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { supabaseClient } from '@/util/supabase/client'
 
 interface Article {
-    id: string
+    id: string | number
     title: string
     summary: string
     created_at: string
-    categories: { name: string } | null
+    category?: string | null
+    categories?: { name: string } | null
 }
 
 export default function Home() {
@@ -17,21 +17,18 @@ export default function Home() {
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
-        const fetchArticles = async () => {
-            const { data, error } = await supabaseClient
-                .from('articles')
-                .select('id, title, summary, created_at, categories(name)')
-                .eq('published', true)
-                .order('created_at', { ascending: false })
-                .limit(6)
-
-            if (!error && data) {
-                setArticles(data as unknown as Article[])
-            }
-            setLoading(false)
-        }
-        fetchArticles()
+        fetch('/api/articles?published=true')
+            .then((r) => r.json())
+            .then((data) => {
+                setArticles(Array.isArray(data) ? data.slice(0, 6) : [])
+            })
+            .catch(() => setArticles([]))
+            .finally(() => setLoading(false))
     }, [])
+
+    function getCategoryName(article: Article) {
+        return article.category ?? article.categories?.name ?? null
+    }
 
     return (
         <div className="min-h-screen bg-gray-50">
@@ -79,9 +76,9 @@ export default function Home() {
                                 className="bg-white rounded-2xl shadow-md hover:shadow-xl transition-shadow duration-200 overflow-hidden group"
                             >
                                 <div className="p-6 flex flex-col h-full">
-                                    {article.categories?.name && (
+                                    {getCategoryName(article) && (
                                         <span className="inline-block self-start bg-red-100 text-red-700 text-xs font-semibold px-3 py-1 rounded-full mb-3">
-                                            {article.categories.name}
+                                            {getCategoryName(article)}
                                         </span>
                                     )}
                                     <h3 className="text-lg font-bold text-gray-900 mb-2 group-hover:text-red-600 transition-colors line-clamp-2">

@@ -4,7 +4,6 @@ import { useUser } from '@/hooks/useAuth'
 import { useRouter } from 'next/navigation'
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
-import { supabaseClient } from '@/util/supabase/client'
 
 interface Article {
     id: string
@@ -75,12 +74,12 @@ export default function AdminArticles() {
 
     const fetchCategories = useCallback(async () => {
         try {
-            const { data, error } = await supabaseClient
-                .from('categories')
-                .select('name')
-                .order('name')
-            if (!error && data) {
-                setCategories(data.map((c: { name: string }) => c.name))
+            const res = await fetch('/api/categories')
+            if (res.ok) {
+                const data = await res.json()
+                if (Array.isArray(data)) {
+                    setCategories(data.map((c: { name: string }) => c.name))
+                }
             }
         } catch (err) {
             console.error('Error fetching categories:', err)

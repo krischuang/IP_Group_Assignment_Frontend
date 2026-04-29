@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@/util/supabase/server'
+import { cookies } from 'next/headers'
+import { API_BASE } from '@/util/api/client'
 
 interface RouteContext {
     params: Promise<{ id: string }>
@@ -8,119 +9,52 @@ interface RouteContext {
 export async function GET(_request: Request, context: RouteContext) {
     try {
         const { id } = await context.params
-        const supabase = await createClient()
-
-        const { data, error } = await supabase
-            .from('articles')
-            .select('*, categories(name), users(full_name, email)')
-            .eq('id', id)
-            .single()
-
-        if (error) {
-            const status = error.code === 'PGRST116' ? 404 : 500
-            return NextResponse.json({ error: error.message }, { status })
-        }
-
-        return NextResponse.json(data, { status: 200 })
+        const res = await fetch(`${API_BASE}/articles/${id}`, { cache: 'no-store' })
+        const data = await res.json()
+        return NextResponse.json(data, { status: res.status })
     } catch (err: any) {
-        return NextResponse.json(
-            { error: err?.message ?? 'Unknown error' },
-            { status: 500 }
-        )
+        return NextResponse.json({ error: err?.message ?? 'Unknown error' }, { status: 500 })
     }
 }
 
 export async function PUT(request: Request, context: RouteContext) {
     try {
         const { id } = await context.params
-        const supabase = await createClient()
-
-        const {
-            data: { user },
-            error: authError,
-        } = await supabase.auth.getUser()
-
-        if (authError || !user) {
-            return NextResponse.json(
-                { error: 'Unauthorized' },
-                { status: 401 }
-            )
-        }
-
-        const { data: dbUser, error: userError } = await supabase
-            .from('users')
-            .select('role')
-            .eq('id', user.id)
-            .single()
-
-        if (userError || dbUser?.role !== 'admin') {
-            return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-        }
+        const cookieStore = await cookies()
+        const token = cookieStore.get('auth_token')?.value
+        if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
         const body = await request.json()
-
-        const { data, error } = await supabase
-            .from('articles')
-            .update(body)
-            .eq('id', id)
-            .select('*, categories(name), users(full_name, email)')
-            .single()
-
-        if (error) {
-            const status = error.code === 'PGRST116' ? 404 : 500
-            return NextResponse.json({ error: error.message }, { status })
-        }
-
-        return NextResponse.json(data, { status: 200 })
+        const res = await fetch(`${API_BASE}/articles/${id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify(body),
+        })
+        const data = await res.json()
+        return NextResponse.json(data, { status: res.status })
     } catch (err: any) {
-        return NextResponse.json(
-            { error: err?.message ?? 'Unknown error' },
-            { status: 500 }
-        )
+        return NextResponse.json({ error: err?.message ?? 'Unknown error' }, { status: 500 })
     }
 }
 
 export async function DELETE(_request: Request, context: RouteContext) {
     try {
         const { id } = await context.params
-        const supabase = await createClient()
+        const cookieStore = await cookies()
+        const token = cookieStore.get('auth_token')?.value
+        if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-        const {
-            data: { user },
-            error: authError,
-        } = await supabase.auth.getUser()
-
-        if (authError || !user) {
-            return NextResponse.json(
-                { error: 'Unauthorized' },
-                { status: 401 }
-            )
-        }
-
-        const { data: dbUser, error: userError } = await supabase
-            .from('users')
-            .select('role')
-            .eq('id', user.id)
-            .single()
-
-        if (userError || dbUser?.role !== 'admin') {
-            return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-        }
-
-        const { error } = await supabase
-            .from('articles')
-            .delete()
-            .eq('id', id)
-
-        if (error) {
-            return NextResponse.json({ error: error.message }, { status: 500 })
-        }
-
-        return NextResponse.json({ success: true }, { status: 200 })
+        const res = await fetch(`${API_BASE}/articles/${id}`, {
+            method: 'DELETE',
+            headers: { Authorization: `Bearer ${token}` },
+        })
+        if (res.status === 204) return NextResponse.json({ success: true }, { status: 200 })
+        const data = await res.json()
+        return NextResponse.json(data, { status: res.status })
     } catch (err: any) {
-        return NextResponse.json(
-            { error: err?.message ?? 'Unknown error' },
-            { status: 500 }
-        )
+        return NextResponse.json({ error: err?.message ?? 'Unknown error' }, { status: 500 })
     }
 }
