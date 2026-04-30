@@ -1,9 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { signUpWithEmail, signInWithPassword } from '@/actions/auth'
+import { Turnstile, TurnstileInstance } from '@marsidev/react-turnstile'
+import { signUpWithEmail } from '@/actions/auth'
 import Link from 'next/link'
+
+const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? ''
 
 export default function SignUp() {
     const [fullName, setFullName] = useState('')
@@ -13,6 +16,8 @@ export default function SignUp() {
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [errorMessage, setErrorMessage] = useState('')
     const [successMessage, setSuccessMessage] = useState('')
+    const [turnstileToken, setTurnstileToken] = useState('')
+    const turnstileRef = useRef<TurnstileInstance>(null)
     const router = useRouter()
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -35,31 +40,35 @@ export default function SignUp() {
             return
         }
 
+        if (!turnstileToken) {
+            setErrorMessage('Please complete the security check.')
+            return
+        }
+
         setIsSubmitting(true)
 
         try {
             const result = await signUpWithEmail(
                 email.toLowerCase().trim(),
                 password,
-                fullName.trim()
+                fullName.trim(),
+                turnstileToken
             )
 
             if (!result.success) {
                 setErrorMessage(result.error || 'Failed to create account.')
+                turnstileRef.current?.reset()
+                setTurnstileToken('')
             } else {
-                setSuccessMessage('Account created! Signing you in...')
-                const loginResult = await signInWithPassword(
-                    email.toLowerCase().trim(),
-                    password
-                )
-                if (loginResult.success) {
-                    window.location.href = '/profile'
-                    return
-                }
-                setSuccessMessage('Account created! You can now sign in.')
+                setSuccessMessage('Account created! Redirecting to sign in...')
+                setTimeout(() => {
+                    router.push('/sign-in')
+                }, 1500)
             }
         } catch {
             setErrorMessage('An unexpected error occurred. Please try again.')
+            turnstileRef.current?.reset()
+            setTurnstileToken('')
         } finally {
             setIsSubmitting(false)
         }
@@ -159,9 +168,19 @@ export default function SignUp() {
                         />
                     </div>
 
+                    <div className="flex justify-center">
+                        <Turnstile
+                            ref={turnstileRef}
+                            siteKey={TURNSTILE_SITE_KEY}
+                            onSuccess={(token) => setTurnstileToken(token)}
+                            onExpire={() => setTurnstileToken('')}
+                            onError={() => setTurnstileToken('')}
+                        />
+                    </div>
+
                     <button
                         type="submit"
-                        disabled={isSubmitting}
+                        disabled={isSubmitting || !turnstileToken}
                         className="w-full py-2.5 rounded-lg text-white font-medium transition disabled:opacity-50 disabled:cursor-not-allowed hover:brightness-110"
                         style={{ backgroundColor: '#D93C3E' }}
                     >

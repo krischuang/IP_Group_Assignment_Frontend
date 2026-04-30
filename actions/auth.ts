@@ -17,13 +17,13 @@ async function encryptPassword(password: string): Promise<string> {
     return encrypted.toString('base64')
 }
 
-export async function signUpWithEmail(email: string, password: string, fullName: string) {
+export async function signUpWithEmail(email: string, password: string, fullName: string, turnstileToken: string) {
     try {
         const encryptedPassword = await encryptPassword(password)
         const res = await fetch(`${API_BASE}/auth/register`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password: encryptedPassword, full_name: fullName }),
+            body: JSON.stringify({ email, password: encryptedPassword, full_name: fullName, turnstile_token: turnstileToken }),
         })
         if (!res.ok) {
             const err = await res.json().catch(() => ({ detail: 'Registration failed' }))
@@ -39,13 +39,13 @@ export async function signUpWithEmail(email: string, password: string, fullName:
     }
 }
 
-export async function signInWithPassword(email: string, password: string) {
+export async function signInWithPassword(email: string, password: string, turnstileToken: string) {
     try {
         const encryptedPassword = await encryptPassword(password)
         const res = await fetch(`${API_BASE}/auth/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password: encryptedPassword }),
+            body: JSON.stringify({ email, password: encryptedPassword, turnstile_token: turnstileToken }),
         })
         if (!res.ok) {
             const err = await res.json().catch(() => ({ detail: 'Login failed' }))

@@ -1,10 +1,13 @@
 'use client'
 
-import { useState, Suspense, useEffect } from 'react'
+import { useState, useRef, Suspense, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { Turnstile, TurnstileInstance } from '@marsidev/react-turnstile'
 import { signInWithPassword } from '@/actions/auth'
 import { useUser } from '@/hooks/useAuth'
 import Link from 'next/link'
+
+const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? ''
 
 export default function SignIn() {
     return (
@@ -28,6 +31,8 @@ function SignInContent() {
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [errorMessage, setErrorMessage] = useState('')
     const [successMessage, setSuccessMessage] = useState('')
+    const [turnstileToken, setTurnstileToken] = useState('')
+    const turnstileRef = useRef<TurnstileInstance>(null)
     const { user, loading } = useUser()
     const router = useRouter()
     const searchParams = useSearchParams()
@@ -44,17 +49,19 @@ function SignInContent() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
-        if (!email.trim() || !password) return
+        if (!email.trim() || !password || !turnstileToken) return
 
         setIsSubmitting(true)
         setErrorMessage('')
         setSuccessMessage('')
 
         try {
-            const result = await signInWithPassword(email.toLowerCase().trim(), password)
+            const result = await signInWithPassword(email.toLowerCase().trim(), password, turnstileToken)
 
             if (!result.success) {
                 setErrorMessage(result.error || 'Invalid email or password.')
+                turnstileRef.current?.reset()
+                setTurnstileToken('')
                 setIsSubmitting(false)
             } else {
                 setSuccessMessage('Signed in successfully! Redirecting...')
@@ -65,6 +72,8 @@ function SignInContent() {
             }
         } catch {
             setErrorMessage('An unexpected error occurred. Please try again.')
+            turnstileRef.current?.reset()
+            setTurnstileToken('')
             setIsSubmitting(false)
         }
     }
@@ -169,9 +178,19 @@ function SignInContent() {
                         />
                     </div>
 
+                    <div className="flex justify-center">
+                        <Turnstile
+                            ref={turnstileRef}
+                            siteKey={TURNSTILE_SITE_KEY}
+                            onSuccess={(token) => setTurnstileToken(token)}
+                            onExpire={() => setTurnstileToken('')}
+                            onError={() => setTurnstileToken('')}
+                        />
+                    </div>
+
                     <button
                         type="submit"
-                        disabled={isSubmitting || !email.trim() || !password}
+                        disabled={isSubmitting || !email.trim() || !password || !turnstileToken}
                         className="w-full py-2.5 rounded-lg text-white font-medium transition disabled:opacity-50 disabled:cursor-not-allowed hover:brightness-110"
                         style={{ backgroundColor: '#D93C3E' }}
                     >
