@@ -13,7 +13,7 @@ export default function Profile() {
     const [fullName, setFullName] = useState('')
     const [bio, setBio] = useState('')
     const [saving, setSaving] = useState(false)
-    const [toast, setToast] = useState<string | null>(null)
+    const [toast, setToast] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
     useEffect(() => {
         if (!loading && !user) {
@@ -41,10 +41,10 @@ export default function Profile() {
         setSaving(false)
 
         if (result) {
-            setToast('Profile updated successfully!')
+            setToast({ type: 'success', text: 'Profile updated successfully' })
             setEditing(false)
         } else {
-            setToast('Failed to update profile. Please try again.')
+            setToast({ type: 'error', text: 'Failed to update profile. Please try again.' })
         }
     }
 
@@ -56,10 +56,10 @@ export default function Profile() {
 
     if (loading) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gray-50">
+            <div className="flex min-h-[calc(100vh-68px)] items-center justify-center">
                 <div className="text-center">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-red-500 mx-auto mb-4" />
-                    <p className="text-gray-600 font-medium">Loading your profile...</p>
+                    <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-[3px] border-ink-300/40 border-t-brand-600" />
+                    <p className="font-medium text-ink-500">Loading your profile…</p>
                 </div>
             </div>
         )
@@ -67,118 +67,143 @@ export default function Profile() {
 
     if (!user || !profile) return null
 
+    const initial = profile.full_name
+        ? profile.full_name.charAt(0).toUpperCase()
+        : user.email?.charAt(0).toUpperCase()
+
     return (
-        <div className="min-h-screen bg-gray-50 py-12 px-4">
+        <div className="relative py-10 sm:py-14">
+            <div className="absolute inset-x-0 top-0 h-56 bg-brand-gradient" aria-hidden="true" />
+
             {/* Toast */}
             {toast && (
-                <div className="fixed top-6 right-6 z-50 bg-white border border-gray-200 shadow-lg rounded-xl px-5 py-3 text-sm font-medium text-gray-800 animate-fade-in">
-                    {toast}
+                <div
+                    role="status"
+                    className={`fixed right-4 top-20 z-50 flex items-center gap-2.5 rounded-xl border px-4 py-3 text-sm font-medium shadow-elevated animate-fade-in ${
+                        toast.type === 'success'
+                            ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                            : 'border-red-200 bg-red-50 text-red-800'
+                    }`}
+                >
+                    {toast.type === 'success' ? (
+                        <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                    ) : (
+                        <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="12" cy="12" r="10" />
+                            <line x1="12" y1="8" x2="12" y2="12" />
+                            <line x1="12" y1="16" x2="12.01" y2="16" />
+                        </svg>
+                    )}
+                    {toast.text}
                 </div>
             )}
 
-            <div className="max-w-2xl mx-auto">
-                {/* Profile Card */}
-                <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
+            <div className="relative section-shell max-w-3xl">
+                <div className="card overflow-hidden shadow-elevated">
                     {/* Header */}
-                    <div
-                        className="px-8 py-10 text-white text-center"
-                        style={{ background: 'linear-gradient(135deg, #D93C3E 0%, #a02d2f 100%)' }}
-                    >
-                        <div className="w-20 h-20 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-4 border-4 border-white/30">
-                            {profile.full_name
-                                ? profile.full_name.charAt(0).toUpperCase()
-                                : user.email?.charAt(0).toUpperCase()}
+                    <div className="relative px-8 pb-10 pt-12 text-center text-white bg-brand-gradient">
+                        <div
+                            className="absolute inset-0 opacity-40"
+                            style={{
+                                backgroundImage:
+                                    'radial-gradient(circle at 30% 20%, rgba(255,255,255,0.2), transparent 40%), radial-gradient(circle at 80% 80%, rgba(255,255,255,0.12), transparent 45%)',
+                            }}
+                            aria-hidden="true"
+                        />
+                        <div className="relative">
+                            <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full border-4 border-white/40 bg-white/20 text-3xl font-bold backdrop-blur-sm">
+                                {initial}
+                            </div>
+                            <h1 className="mt-5 text-2xl font-bold">
+                                {profile.full_name || 'Your Profile'}
+                            </h1>
+                            <p className="mt-1 text-sm text-white/80">{user.email}</p>
+                            <span
+                                className={`mt-4 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wider ${
+                                    isAdmin
+                                        ? 'bg-amber-300 text-amber-900'
+                                        : 'bg-white/20 text-white border border-white/30 backdrop-blur-sm'
+                                }`}
+                            >
+                                {isAdmin && (
+                                    <svg className="h-3 w-3" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                                    </svg>
+                                )}
+                                {profile.role}
+                            </span>
                         </div>
-                        <h1 className="text-2xl font-bold">
-                            {profile.full_name || 'Your Profile'}
-                        </h1>
-                        <span
-                            className={`inline-block mt-3 text-xs font-semibold px-3 py-1 rounded-full ${
-                                isAdmin
-                                    ? 'bg-yellow-400 text-yellow-900'
-                                    : 'bg-white/20 text-white'
-                            }`}
-                        >
-                            {profile.role}
-                        </span>
                     </div>
 
                     {/* Body */}
-                    <div className="p-8 space-y-6">
-                        {/* Email (read-only) */}
+                    <div className="space-y-5 p-8 sm:p-10">
                         <div>
-                            <label className="block text-sm font-semibold text-gray-500 uppercase tracking-wide mb-1">
-                                Email
-                            </label>
-                            <p className="text-gray-900 bg-gray-50 px-4 py-3 rounded-lg border border-gray-200">
+                            <label className="field-label">Email</label>
+                            <p className="rounded-xl border border-ink-300/40 bg-surface-muted px-4 py-3 text-ink-900">
                                 {user.email}
                             </p>
                         </div>
 
-                        {/* Full Name */}
                         <div>
-                            <label className="block text-sm font-semibold text-gray-500 uppercase tracking-wide mb-1">
-                                Full Name
-                            </label>
+                            <label className="field-label">Full name</label>
                             {editing ? (
                                 <input
                                     type="text"
                                     value={fullName}
                                     onChange={(e) => setFullName(e.target.value)}
-                                    className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-red-400 focus:border-transparent outline-none transition"
+                                    className="field-input"
                                     placeholder="Enter your full name"
                                 />
                             ) : (
-                                <p className="text-gray-900 bg-gray-50 px-4 py-3 rounded-lg border border-gray-200">
-                                    {profile.full_name || 'Not provided'}
+                                <p className="rounded-xl border border-ink-300/40 bg-surface-muted px-4 py-3 text-ink-900">
+                                    {profile.full_name || <span className="text-ink-500">Not provided</span>}
                                 </p>
                             )}
                         </div>
 
-                        {/* Bio */}
                         <div>
-                            <label className="block text-sm font-semibold text-gray-500 uppercase tracking-wide mb-1">
-                                Bio
-                            </label>
+                            <label className="field-label">Bio</label>
                             {editing ? (
                                 <textarea
                                     value={bio}
                                     onChange={(e) => setBio(e.target.value)}
                                     rows={4}
-                                    className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-red-400 focus:border-transparent outline-none transition resize-none"
+                                    className="field-input resize-none"
                                     placeholder="Tell us about yourself"
                                 />
                             ) : (
-                                <p className="text-gray-900 bg-gray-50 px-4 py-3 rounded-lg border border-gray-200 min-h-[4rem]">
-                                    {profile.bio || 'No bio yet'}
+                                <p className="min-h-[4rem] whitespace-pre-wrap rounded-xl border border-ink-300/40 bg-surface-muted px-4 py-3 text-ink-900">
+                                    {profile.bio || <span className="text-ink-500">No bio yet</span>}
                                 </p>
                             )}
                         </div>
 
-                        {/* Actions */}
-                        <div className="flex gap-3 pt-2">
+                        <div className="flex gap-3 pt-3">
                             {editing ? (
                                 <>
-                                    <button
-                                        onClick={handleSave}
-                                        disabled={saving}
-                                        className="flex-1 bg-red-600 text-white font-semibold py-3 rounded-xl hover:bg-red-700 transition-colors disabled:opacity-50"
-                                    >
-                                        {saving ? 'Saving...' : 'Save'}
+                                    <button onClick={handleSave} disabled={saving} className="btn-primary flex-1 py-3">
+                                        {saving ? (
+                                            <>
+                                                <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                                                Saving…
+                                            </>
+                                        ) : (
+                                            'Save changes'
+                                        )}
                                     </button>
-                                    <button
-                                        onClick={handleCancel}
-                                        className="flex-1 border border-gray-300 text-gray-700 font-semibold py-3 rounded-xl hover:bg-gray-50 transition-colors"
-                                    >
+                                    <button onClick={handleCancel} className="btn-secondary flex-1 py-3">
                                         Cancel
                                     </button>
                                 </>
                             ) : (
-                                <button
-                                    onClick={() => setEditing(true)}
-                                    className="w-full bg-red-600 text-white font-semibold py-3 rounded-xl hover:bg-red-700 transition-colors"
-                                >
-                                    Edit Profile
+                                <button onClick={() => setEditing(true)} className="btn-primary w-full py-3">
+                                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+                                        <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                    </svg>
+                                    Edit profile
                                 </button>
                             )}
                         </div>

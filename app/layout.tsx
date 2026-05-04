@@ -27,6 +27,8 @@ export default function RootLayout({
             <head>
                 <title>{`${path}UTSFE`}</title>
                 <meta name="description" content="UTSFE - A content management platform" />
+                <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+                <link rel="icon" href="/favicon.ico" sizes="32x32" />
             </head>
             <body>
                 <a href='#main-content' className='skip-link'>Skip to main content</a>
