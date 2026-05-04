@@ -6,7 +6,9 @@ import { API_BASE } from '@/util/api/client'
 
 async function encryptPassword(password: string): Promise<string> {
     const res = await fetch(`${API_BASE}/auth/public-key`)
-    const { public_key } = await res.json()
+    const j = await res.json()
+    const public_key = typeof j.public_key === 'string' ? j.public_key : j.publicKey
+    if (!public_key || typeof public_key !== 'string') throw new Error('Invalid public key response')
     const encrypted = crypto.publicEncrypt(
         {
             key: public_key,

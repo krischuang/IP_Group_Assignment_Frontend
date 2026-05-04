@@ -4,6 +4,8 @@ import { useUser } from '@/hooks/useAuth'
 import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { getAdminStatsAction } from '@/actions/admin'
+import { fetchPublicArticlesList } from '@/util/api/publicArticles'
 
 interface DashboardStats {
     totalArticles: number
@@ -11,6 +13,8 @@ interface DashboardStats {
     draftArticles: number
     totalUsers: number
 }
+
+/** Backend has no drafts/published split on articles (OpenAPI). User count comes from GET /admin/stats. */
 
 export default function AdminDashboard() {
     const { user, profile, loading, isAdmin } = useUser()
@@ -24,8 +28,14 @@ export default function AdminDashboard() {
     const [statsLoading, setStatsLoading] = useState(true)
 
     useEffect(() => {
-        if (!loading && !user) { router.push('/sign-in'); return }
-        if (!loading && user && !isAdmin) { router.push('/'); return }
+        if (!loading && !user) {
+            router.push('/sign-in')
+            return
+        }
+        if (!loading && user && !isAdmin) {
+            router.push('/')
+            return
+        }
     }, [user, loading, isAdmin, router])
 
     useEffect(() => {
@@ -34,21 +44,18 @@ export default function AdminDashboard() {
         const fetchStats = async () => {
             setStatsLoading(true)
             try {
-                const [allRes, publishedRes, usersRes] = await Promise.all([
-                    fetch('/api/articles').then((r) => r.json()),
-                    fetch('/api/articles?published=true').then((r) => r.json()),
-                    fetch('/api/admin/users').then((r) => r.json()),
+                const [articlesList, stats] = await Promise.all([
+                    fetchPublicArticlesList(),
+                    getAdminStatsAction(),
                 ])
 
-                const all: any[] = Array.isArray(allRes) ? allRes : []
-                const published: any[] = Array.isArray(publishedRes) ? publishedRes : []
-                const users: any[] = Array.isArray(usersRes) ? usersRes : []
-
+                const n = articlesList.length
+                const totalUsers = stats?.total_users ?? 0
                 setStats({
-                    totalArticles: all.length,
-                    publishedArticles: published.length,
-                    draftArticles: all.length - published.length,
-                    totalUsers: users.length,
+                    totalArticles: n,
+                    publishedArticles: n,
+                    draftArticles: 0,
+                    totalUsers,
                 })
             } catch (err) {
                 console.error('Failed to fetch dashboard stats:', err)
@@ -79,16 +86,18 @@ export default function AdminDashboard() {
             icon: 'M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z',
         },
         {
-            label: 'Published',
+            label: 'Listed (same as total)',
             value: stats.publishedArticles,
             tone: 'emerald',
             icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
+            hint: 'API has no draft/published flag',
         },
         {
             label: 'Drafts',
             value: stats.draftArticles,
             tone: 'amber',
             icon: 'M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z',
+            hint: 'Not applicable on this backend',
         },
         {
             label: 'Total users',
@@ -107,7 +116,6 @@ export default function AdminDashboard() {
 
     return (
         <div className="relative">
-            {/* Header */}
             <div className="relative overflow-hidden bg-brand-gradient text-white">
                 <div className="absolute inset-0 bg-grid opacity-[0.1] pointer-events-none" aria-hidden="true" />
                 <div
@@ -128,16 +136,13 @@ export default function AdminDashboard() {
                         </div>
                         <div>
                             <h1 className="text-3xl font-bold tracking-tight">Admin Dashboard</h1>
-                            <p className="mt-1 text-white/85">
-                                Welcome back, {profile?.full_name || profile?.email || 'Admin'}
-                            </p>
+                            <p className="mt-1 text-white/85">Welcome back, {profile?.full_name || profile?.email || 'Admin'}</p>
                         </div>
                     </div>
                 </div>
             </div>
 
             <div className="section-shell -mt-10 relative z-10 py-10">
-                {/* Stats */}
                 <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
                     {statCards.map((card) => {
                         const tones = toneMap[card.tone]
@@ -157,6 +162,7 @@ export default function AdminDashboard() {
                                     <>
                                         <p className={`mt-4 text-3xl font-bold tabular-nums ${tones.valueText}`}>{card.value}</p>
                                         <p className="mt-1 text-sm font-medium text-ink-500">{card.label}</p>
+                                        {'hint' in card && card.hint && <p className="mt-1 text-xs text-ink-400">{card.hint}</p>}
                                     </>
                                 )}
                             </div>
@@ -166,10 +172,7 @@ export default function AdminDashboard() {
 
                 <h2 className="mb-4 mt-12 text-xl font-bold text-ink-900">Quick actions</h2>
                 <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-                    <Link
-                        href="/admin/articles"
-                        className="card-interactive group flex items-center gap-5 p-6"
-                    >
+                    <Link href="/admin/articles" className="card-interactive group flex items-center gap-5 p-6">
                         <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-brand-600 text-white shadow-brand-glow transition-transform duration-200 group-hover:scale-110">
                             <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                 <path d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
@@ -177,17 +180,14 @@ export default function AdminDashboard() {
                         </div>
                         <div className="flex-1">
                             <h3 className="text-lg font-semibold text-ink-900 transition-colors group-hover:text-brand-700">Manage articles</h3>
-                            <p className="text-sm text-ink-500">Create, edit, and publish articles</p>
+                            <p className="text-sm text-ink-500">Create and edit articles (title & content)</p>
                         </div>
                         <svg className="h-5 w-5 text-ink-300 transition-all group-hover:translate-x-1 group-hover:text-brand-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round">
                             <polyline points="9 18 15 12 9 6" />
                         </svg>
                     </Link>
 
-                    <Link
-                        href="/admin/users"
-                        className="card-interactive group flex items-center gap-5 p-6"
-                    >
+                    <Link href="/admin/users" className="card-interactive group flex items-center gap-5 p-6">
                         <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-slate-700 text-white shadow-soft transition-transform duration-200 group-hover:scale-110">
                             <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                 <path d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -195,7 +195,7 @@ export default function AdminDashboard() {
                         </div>
                         <div className="flex-1">
                             <h3 className="text-lg font-semibold text-ink-900 transition-colors group-hover:text-brand-700">Manage users</h3>
-                            <p className="text-sm text-ink-500">View accounts, roles, and permissions</p>
+                            <p className="text-sm text-ink-500">Roles and accounts</p>
                         </div>
                         <svg className="h-5 w-5 text-ink-300 transition-all group-hover:translate-x-1 group-hover:text-brand-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round">
                             <polyline points="9 18 15 12 9 6" />

@@ -1,42 +1,46 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
+import { fetchPublicArticlesList } from '@/util/api/publicArticles'
 
 interface Article {
     id: string | number
     title: string
     summary: string
     created_at: string
-    category?: string | null
-    categories?: { name: string } | null
-}
-
-interface Category {
-    id: string | number
-    name: string
+    author_id?: number
 }
 
 export default function Home() {
     const [articles, setArticles] = useState<Article[]>([])
-    const [categories, setCategories] = useState<Category[]>([])
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
-        Promise.all([
-            fetch('/api/articles?published=true').then((r) => r.json()).catch(() => []),
-            fetch('/api/categories').then((r) => r.json()).catch(() => []),
-        ])
-            .then(([articlesData, categoriesData]) => {
-                setArticles(Array.isArray(articlesData) ? articlesData : [])
-                setCategories(Array.isArray(categoriesData) ? categoriesData : [])
-            })
-            .finally(() => setLoading(false))
+        let cancelled = false
+        ;(async () => {
+            try {
+                const data = await fetchPublicArticlesList()
+                if (!cancelled) setArticles(data as unknown as Article[])
+            } catch {
+                if (!cancelled) setArticles([])
+            } finally {
+                if (!cancelled) setLoading(false)
+            }
+        })()
+        return () => {
+            cancelled = true
+        }
     }, [])
 
-    function getCategoryName(article: Article) {
-        return article.category ?? article.categories?.name ?? null
-    }
+    const contributorCount = useMemo(() => {
+        const ids = new Set<number>()
+        for (const a of articles) {
+            const aid = a.author_id
+            if (typeof aid === 'number' && !Number.isNaN(aid)) ids.add(aid)
+        }
+        return ids.size
+    }, [articles])
 
     function formatDate(iso: string) {
         return new Date(iso).toLocaleDateString('en-AU', {
@@ -87,7 +91,7 @@ export default function Home() {
                         </h1>
 
                         <p className="mt-6 max-w-xl text-lg leading-relaxed text-ink-500 text-pretty animate-fade-in-up">
-                            UTSFE is a modern publishing platform for the UTS Internet Programming community. Read the latest articles, explore by topic, and share your own insights.
+                            UTSFE connects to the Internet Programming group assignment API. Read the latest articles, sign in to manage your profile, and (as an admin) publish new pieces.
                         </p>
 
                         <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center animate-fade-in-up">
@@ -113,9 +117,9 @@ export default function Home() {
                             </div>
                             <div>
                                 <div className="text-2xl font-bold tracking-tight text-ink-900 tabular-nums">
-                                    {loading ? '—' : categories.length}
+                                    {loading ? '—' : contributorCount || '—'}
                                 </div>
-                                <div className="text-xs font-medium uppercase tracking-wider text-ink-500">Categories</div>
+                                <div className="text-xs font-medium uppercase tracking-wider text-ink-500">Authors</div>
                             </div>
                             <div>
                                 <div className="text-2xl font-bold tracking-tight text-ink-900 tabular-nums">24/7</div>
@@ -226,7 +230,7 @@ export default function Home() {
                                 <div className="relative flex h-full flex-col justify-between p-8 text-white">
                                     <div>
                                         <span className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/15 px-3 py-1 text-[0.7rem] font-semibold uppercase tracking-wider backdrop-blur-sm">
-                                            {getCategoryName(featured) ?? 'Featured'}
+                                            Featured
                                         </span>
                                     </div>
                                     <div className="mt-10">
@@ -268,53 +272,7 @@ export default function Home() {
                 </section>
             )}
 
-            {/* ===== Categories ===== */}
-            {!loading && categories.length > 0 && (
-                <section className="section-shell pb-16">
-                    <div className="mb-8 flex items-end justify-between gap-4">
-                        <div>
-                            <div className="flex items-center gap-2">
-                                <span className="h-px w-8 bg-brand-600" aria-hidden="true" />
-                                <span className="text-xs font-bold uppercase tracking-[0.22em] text-brand-700">Topics</span>
-                            </div>
-                            <h2 className="mt-3 text-3xl font-bold tracking-tight text-ink-900 sm:text-4xl">Explore by category</h2>
-                        </div>
-                    </div>
 
-                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-                        {categories.slice(0, 12).map((cat, i) => (
-                            <Link
-                                key={cat.id}
-                                href={`/articles?category=${encodeURIComponent(cat.name)}`}
-                                className="group relative overflow-hidden rounded-2xl border border-ink-300/40 bg-white p-5 transition-all duration-200 hover:-translate-y-0.5 hover:border-brand-300 hover:shadow-card"
-                            >
-                                <div
-                                    className="absolute inset-0 opacity-0 transition-opacity duration-200 group-hover:opacity-100"
-                                    style={{
-                                        backgroundImage:
-                                            'linear-gradient(135deg, rgba(37,99,235,0.06) 0%, rgba(59,130,246,0.03) 100%)',
-                                    }}
-                                    aria-hidden="true"
-                                />
-                                <div className="relative">
-                                    <div className="mb-3 inline-flex h-9 w-9 items-center justify-center rounded-xl bg-brand-50 text-brand-700 transition-colors group-hover:bg-brand-600 group-hover:text-white">
-                                        <span className="text-sm font-bold tabular-nums">{String(i + 1).padStart(2, '0')}</span>
-                                    </div>
-                                    <div className="text-sm font-semibold text-ink-900 transition-colors group-hover:text-brand-700">
-                                        {cat.name}
-                                    </div>
-                                    <div className="mt-1 flex items-center gap-1 text-xs text-ink-500">
-                                        Browse
-                                        <svg className="h-3 w-3 transition-transform group-hover:translate-x-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round">
-                                            <polyline points="9 18 15 12 9 6" />
-                                        </svg>
-                                    </div>
-                                </div>
-                            </Link>
-                        ))}
-                    </div>
-                </section>
-            )}
 
             {/* ===== Latest articles — numbered editorial list ===== */}
             <section className="bg-surface-muted py-16 sm:py-20">
@@ -378,9 +336,6 @@ export default function Home() {
                                         {/* Meta + content */}
                                         <div className="min-w-0 flex-1">
                                             <div className="mb-2 flex flex-wrap items-center gap-3 text-xs">
-                                                {getCategoryName(article) && (
-                                                    <span className="badge-brand">{getCategoryName(article)}</span>
-                                                )}
                                                 <time className="font-medium text-ink-500">
                                                     {formatDate(article.created_at)}
                                                 </time>

@@ -8,6 +8,7 @@ const PUBLIC = [
     '/sign-in',
     '/sign-up',
     '/api',
+    '/bff',
 ] as const
 
 const ADMIN_ONLY = [

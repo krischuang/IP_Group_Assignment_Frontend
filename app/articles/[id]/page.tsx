@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
+import { fetchPublicArticleById } from '@/util/api/publicArticles'
 
 interface Article {
     id: string | number
@@ -10,8 +11,7 @@ interface Article {
     content: string
     summary: string
     created_at: string
-    category?: string | null
-    categories?: { name: string } | null
+    author_id?: number | null
     author_name?: string | null
     users?: { full_name: string; email: string } | null
 }
@@ -80,22 +80,34 @@ export default function ArticlePage() {
 
     useEffect(() => {
         if (!id) return
-        fetch(`/api/articles/${id}`)
-            .then(async (r) => {
-                if (!r.ok) throw new Error('Article not found')
-                return r.json()
-            })
-            .then(setArticle)
-            .catch((e) => setError(e.message))
-            .finally(() => setLoading(false))
+        let cancelled = false
+        ;(async () => {
+            try {
+                const row = await fetchPublicArticleById(String(id))
+                if (cancelled) return
+                if (!row) {
+                    setError('Article not found')
+                    setArticle(null)
+                } else {
+                    setArticle(row as unknown as Article)
+                }
+            } catch {
+                if (!cancelled) setError('Something went wrong')
+            } finally {
+                if (!cancelled) setLoading(false)
+            }
+        })()
+        return () => {
+            cancelled = true
+        }
     }, [id])
 
-    function getCategoryName(a: Article) {
-        return a.category ?? a.categories?.name ?? null
-    }
-
-    function getAuthorName(a: Article) {
-        return a.author_name ?? a.users?.full_name ?? null
+    function authorLine(a: Article): string | null {
+        const byName = a.author_name ?? a.users?.full_name ?? null
+        if (byName) return byName
+        const aid = a.author_id
+        if (typeof aid === 'number' && !Number.isNaN(aid)) return `Author #${aid}`
+        return null
     }
 
     function formatDate(iso: string) {
@@ -153,6 +165,8 @@ export default function ArticlePage() {
         )
     }
 
+    const byline = authorLine(article)
+
     return (
         <article className="relative">
             <div className="relative overflow-hidden border-b border-ink-300/40 bg-white">
@@ -174,18 +188,17 @@ export default function ArticlePage() {
                     </h1>
 
                     <div className="mt-6 flex flex-wrap items-center gap-3 text-sm text-ink-500">
-                        {getCategoryName(article) && (
-                            <span className="badge-brand">{getCategoryName(article)}</span>
-                        )}
-                        {getAuthorName(article) && (
-                            <span className="inline-flex items-center gap-1.5">
-                                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-100 text-[0.65rem] font-bold uppercase text-brand-700">
-                                    {getAuthorName(article)?.charAt(0)}
+                        {byline ? (
+                            <>
+                                <span className="inline-flex items-center gap-1.5">
+                                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-100 text-[0.65rem] font-bold uppercase text-brand-700">
+                                        {byline.charAt(0)}
+                                    </span>
+                                    <span className="font-medium text-ink-700">{byline}</span>
                                 </span>
-                                <span className="font-medium text-ink-700">{getAuthorName(article)}</span>
-                            </span>
-                        )}
-                        <span aria-hidden="true" className="h-1 w-1 rounded-full bg-ink-300" />
+                                <span aria-hidden="true" className="h-1 w-1 rounded-full bg-ink-300" />
+                            </>
+                        ) : null}
                         <span>{formatDate(article.created_at)}</span>
                     </div>
                 </div>

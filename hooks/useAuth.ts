@@ -40,5 +40,6 @@ export const useUser = () => {
         loading,
         logout,
         isAdmin: profile?.role?.toLowerCase() === 'admin',
+        refetchUser: fetchUser,
     }
 }

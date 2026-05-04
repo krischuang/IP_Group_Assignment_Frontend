@@ -1,20 +1,18 @@
 import { NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { API_BASE } from '@/util/api/client'
+import { normalizeArticlesList, normalizeArticleResponse, toArticleCreateBody } from '@/util/api/backend'
 
-export async function GET(request: Request) {
+export async function GET() {
     try {
-        const { searchParams } = new URL(request.url)
-        const published = searchParams.get('published')
-
-        let url = `${API_BASE}/articles/`
-        if (published !== null) url += `?published=${published}`
-
-        const res = await fetch(url, { cache: 'no-store' })
-        const data = await res.json()
-        return NextResponse.json(data, { status: res.status })
-    } catch (err: any) {
-        return NextResponse.json({ error: err?.message ?? 'Unknown error' }, { status: 500 })
+        /** OpenAPI: GET /articles/ has no published filter */
+        const res = await fetch(`${API_BASE}/articles/`, { cache: 'no-store' })
+        const data = await res.json().catch(() => [])
+        const list = normalizeArticlesList(data)
+        return NextResponse.json(list, { status: res.status })
+    } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'Unknown error'
+        return NextResponse.json({ error: message }, { status: 500 })
     }
 }
 
@@ -24,18 +22,24 @@ export async function POST(request: Request) {
         const token = cookieStore.get('auth_token')?.value
         if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-        const body = await request.json()
+        const bodyIn = await request.json()
+        const dto = toArticleCreateBody(bodyIn as Record<string, unknown>)
+        if (!dto)
+            return NextResponse.json({ error: 'Title and content are required' }, { status: 400 })
+
         const res = await fetch(`${API_BASE}/articles/`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 Authorization: `Bearer ${token}`,
             },
-            body: JSON.stringify(body),
+            body: JSON.stringify(dto),
         })
-        const data = await res.json()
-        return NextResponse.json(data, { status: res.status })
-    } catch (err: any) {
-        return NextResponse.json({ error: err?.message ?? 'Unknown error' }, { status: 500 })
+        const data = await res.json().catch(() => ({}))
+        if (!res.ok) return NextResponse.json(data, { status: res.status })
+        return NextResponse.json(normalizeArticleResponse(data as Record<string, unknown>), { status: res.status })
+    } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'Unknown error'
+        return NextResponse.json({ error: message }, { status: 500 })
     }
 }

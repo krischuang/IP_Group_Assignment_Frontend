@@ -2,51 +2,46 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { fetchPublicArticlesList } from '@/util/api/publicArticles'
 
 interface Article {
     id: string | number
     title: string
     summary: string
     created_at: string
-    category?: string | null
-    categories?: { name: string } | null
-}
-
-interface Category {
-    id: string | number
-    name: string
 }
 
 export default function ArticlesPage() {
     const [articles, setArticles] = useState<Article[]>([])
-    const [categories, setCategories] = useState<Category[]>([])
-    const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
     const [search, setSearch] = useState('')
     const [loading, setLoading] = useState(true)
+    const [loadError, setLoadError] = useState<string | null>(null)
 
     useEffect(() => {
-        Promise.all([
-            fetch('/api/articles?published=true').then((r) => r.json()),
-            fetch('/api/categories').then((r) => r.json()),
-        ])
-            .then(([articlesData, categoriesData]) => {
-                setArticles(Array.isArray(articlesData) ? articlesData : [])
-                setCategories(Array.isArray(categoriesData) ? categoriesData : [])
-            })
-            .catch(() => {})
-            .finally(() => setLoading(false))
+        let cancelled = false
+        ;(async () => {
+            setLoading(true)
+            setLoadError(null)
+            try {
+                const data = await fetchPublicArticlesList()
+                if (!cancelled) setArticles(data as unknown as Article[])
+            } catch {
+                if (!cancelled) {
+                    setArticles([])
+                    setLoadError('Could not load articles. Try again shortly.')
+                }
+            } finally {
+                if (!cancelled) setLoading(false)
+            }
+        })()
+        return () => {
+            cancelled = true
+        }
     }, [])
 
-    function getCategoryName(article: Article) {
-        return article.category ?? article.categories?.name ?? null
-    }
-
-    const filtered = articles.filter((a) => {
-        const catName = getCategoryName(a)
-        const matchesCategory = !selectedCategory || catName === selectedCategory
-        const matchesSearch = !search || a.title.toLowerCase().includes(search.toLowerCase())
-        return matchesCategory && matchesSearch
-    })
+    const filtered = articles.filter(
+        (a) => !search || a.title.toLowerCase().includes(search.toLowerCase()),
+    )
 
     function formatDate(iso: string) {
         return new Date(iso).toLocaleDateString('en-AU', {
@@ -72,60 +67,27 @@ export default function ArticlesPage() {
                         Articles
                     </h1>
                     <p className="mt-3 max-w-2xl text-base text-ink-500 text-pretty">
-                        Browse the latest articles across every category. Use the search and filters to find exactly what you need.
+                        Browse articles from the assignment API. Search by title — the backend does not expose categories or drafts.
                     </p>
                 </div>
             </div>
 
             <div className="section-shell py-10 sm:py-12">
-                {/* Search + filters */}
+                {/* Search */}
                 <div className="card p-5 mb-8">
-                    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                        <div className="relative w-full lg:max-w-sm">
-                            <svg className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                <circle cx="11" cy="11" r="7" />
-                                <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                            </svg>
-                            <input
-                                type="text"
-                                placeholder="Search articles by title…"
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                                className="field-input pl-10"
-                                aria-label="Search articles"
-                            />
-                        </div>
-
-                        <div className="flex flex-wrap gap-2">
-                            <button
-                                onClick={() => setSelectedCategory(null)}
-                                className={`rounded-full border px-4 py-1.5 text-sm font-medium transition-all ${
-                                    !selectedCategory
-                                        ? 'border-brand-600 bg-brand-600 text-white shadow-soft'
-                                        : 'border-ink-300/60 bg-white text-ink-700 hover:border-brand-300 hover:text-brand-700'
-                                }`}
-                            >
-                                All
-                            </button>
-                            {categories.map((cat) => {
-                                const active = selectedCategory === cat.name
-                                return (
-                                    <button
-                                        key={cat.id}
-                                        onClick={() =>
-                                            setSelectedCategory(active ? null : cat.name)
-                                        }
-                                        className={`rounded-full border px-4 py-1.5 text-sm font-medium transition-all ${
-                                            active
-                                                ? 'border-brand-600 bg-brand-600 text-white shadow-soft'
-                                                : 'border-ink-300/60 bg-white text-ink-700 hover:border-brand-300 hover:text-brand-700'
-                                        }`}
-                                    >
-                                        {cat.name}
-                                    </button>
-                                )
-                            })}
-                        </div>
+                    <div className="relative max-w-xl">
+                        <svg className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="11" cy="11" r="7" />
+                            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                        </svg>
+                        <input
+                            type="text"
+                            placeholder="Search articles by title…"
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            className="field-input pl-10"
+                            aria-label="Search articles"
+                        />
                     </div>
                 </div>
 
@@ -133,25 +95,20 @@ export default function ArticlesPage() {
                 {!loading && (
                     <div className="mb-5 flex items-center justify-between">
                         <p className="text-sm text-ink-500">
-                            {filtered.length === 0
-                                ? 'No matching articles'
-                                : `Showing ${filtered.length} ${filtered.length === 1 ? 'article' : 'articles'}`}
-                            {selectedCategory && (
-                                <>
-                                    {' '}in{' '}
-                                    <span className="font-semibold text-brand-700">{selectedCategory}</span>
-                                </>
-                            )}
+                            {loadError
+                                ? loadError
+                                : filtered.length === 0 && !search && articles.length === 0
+                                  ? 'No articles on the server yet'
+                                  : filtered.length === 0
+                                    ? 'No matching articles'
+                                    : `Showing ${filtered.length} ${filtered.length === 1 ? 'article' : 'articles'}`}
                         </p>
-                        {(search || selectedCategory) && (
+                        {search && (
                             <button
-                                onClick={() => {
-                                    setSearch('')
-                                    setSelectedCategory(null)
-                                }}
+                                onClick={() => setSearch('')}
                                 className="text-sm font-medium text-ink-500 hover:text-brand-700"
                             >
-                                Clear filters
+                                Clear search
                             </button>
                         )}
                     </div>
@@ -182,8 +139,20 @@ export default function ArticlesPage() {
                                 <line x1="21" y1="21" x2="16.65" y2="16.65" />
                             </svg>
                         </div>
-                        <p className="mt-4 font-semibold text-ink-900">No articles match your search</p>
-                        <p className="mt-1 text-sm text-ink-500">Try a different keyword or clear the filters.</p>
+                        <p className="mt-4 font-semibold text-ink-900">
+                            {loadError
+                                ? 'Unable to load articles'
+                                : search
+                                  ? 'No articles match your search'
+                                  : 'No articles yet'}
+                        </p>
+                        <p className="mt-1 text-sm text-ink-500">
+                            {loadError
+                                ? loadError
+                                : search
+                                  ? 'Try a different keyword or clear the search.'
+                                  : 'Published articles will appear here once they exist on the server.'}
+                        </p>
                     </div>
                 )}
 
@@ -195,12 +164,7 @@ export default function ArticlesPage() {
                                 href={`/articles/${article.id}`}
                                 className="card-interactive group flex flex-col p-6"
                             >
-                                <div className="mb-3 flex items-center justify-between">
-                                    {getCategoryName(article) ? (
-                                        <span className="badge-brand">{getCategoryName(article)}</span>
-                                    ) : (
-                                        <span />
-                                    )}
+                                <div className="mb-3 flex justify-end">
                                     <time className="text-xs text-ink-500">{formatDate(article.created_at)}</time>
                                 </div>
                                 <h2 className="line-clamp-2 text-lg font-semibold text-ink-900 transition-colors group-hover:text-brand-700">

@@ -11,6 +11,11 @@ export interface User {
     updated_at?: string
 }
 
-export const updateUser = async (id: string | number, content: Partial<User>) => {
-    return updateCurrentUser(id, content as Record<string, unknown>)
+/** Profile updates use POST /auth/me (OpenAPI UpdateMeRequest) — no path id */
+export const updateUser = async (content: Partial<Pick<User, 'full_name' | 'bio' | 'avatar_url'>>) => {
+    const payload: { full_name?: string; bio?: string; image_address?: string | null } = {}
+    if (content.full_name !== undefined) payload.full_name = content.full_name
+    if (content.bio !== undefined) payload.bio = content.bio
+    if (content.avatar_url !== undefined) payload.image_address = content.avatar_url
+    return updateCurrentUser(payload)
 }

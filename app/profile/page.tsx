@@ -6,7 +6,7 @@ import { updateUser } from '@/hooks/useUser'
 import { useRouter } from 'next/navigation'
 
 export default function Profile() {
-    const { user, profile, loading, isAdmin } = useUser()
+    const { user, profile, loading, isAdmin, refetchUser } = useUser()
     const router = useRouter()
 
     const [editing, setEditing] = useState(false)
@@ -37,12 +37,13 @@ export default function Profile() {
     const handleSave = async () => {
         if (!profile) return
         setSaving(true)
-        const result = await updateUser(profile.id, { full_name: fullName, bio })
+        const result = await updateUser({ full_name: fullName, bio })
         setSaving(false)
 
         if (result) {
             setToast({ type: 'success', text: 'Profile updated successfully' })
             setEditing(false)
+            await refetchUser?.()
         } else {
             setToast({ type: 'error', text: 'Failed to update profile. Please try again.' })
         }

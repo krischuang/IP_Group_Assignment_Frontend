@@ -4,6 +4,7 @@ import { useUser } from '@/hooks/useAuth'
 import { useRouter } from 'next/navigation'
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
+import { deleteAdminUserAction, listAdminUsersAction, updateAdminUserAction } from '@/actions/admin'
 
 interface UserRecord {
     id: string
@@ -40,11 +41,10 @@ export default function AdminUsers() {
     const fetchUsers = useCallback(async () => {
         setUsersLoading(true)
         try {
-            const res = await fetch('/api/admin/users')
-            if (!res.ok) throw new Error('Failed to fetch users')
-            const data = await res.json()
-            setUsers(data)
-        } catch (err: any) {
+            const data = await listAdminUsersAction()
+            if (data === null) throw new Error('Unauthorized')
+            setUsers(data as unknown as UserRecord[])
+        } catch (err: unknown) {
             console.error('Error fetching users:', err)
             setMessage({ type: 'error', text: 'Failed to load users.' })
         } finally {
@@ -68,20 +68,16 @@ export default function AdminUsers() {
     const handleRoleUpdate = async (userId: string) => {
         setActionLoading(userId)
         try {
-            const res = await fetch('/api/admin/users', {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ userId, role: roleValue }),
-            })
-            if (!res.ok) {
-                const errorData = await res.json().catch(() => ({}))
-                throw new Error(errorData.error || 'Failed to update role')
-            }
+            const res = await updateAdminUserAction({ userId, role: roleValue })
+            if (!res.ok) throw new Error(res.error)
             setMessage({ type: 'success', text: 'User role updated successfully.' })
             setEditingRole(null)
             fetchUsers()
-        } catch (err: any) {
-            setMessage({ type: 'error', text: err.message || 'Failed to update role.' })
+        } catch (err: unknown) {
+            setMessage({
+                type: 'error',
+                text: err instanceof Error ? err.message : 'Failed to update role.',
+            })
         } finally {
             setActionLoading(null)
         }
@@ -90,18 +86,16 @@ export default function AdminUsers() {
     const handleDelete = async (userId: string) => {
         setActionLoading(userId)
         try {
-            const res = await fetch(`/api/admin/users?userId=${userId}`, {
-                method: 'DELETE',
-            })
-            if (!res.ok) {
-                const errorData = await res.json().catch(() => ({}))
-                throw new Error(errorData.error || 'Failed to delete user')
-            }
+            const res = await deleteAdminUserAction(userId)
+            if (!res.ok) throw new Error(res.error)
             setMessage({ type: 'success', text: 'User deleted successfully.' })
             setDeleteConfirm(null)
             fetchUsers()
-        } catch (err: any) {
-            setMessage({ type: 'error', text: err.message || 'Failed to delete user.' })
+        } catch (err: unknown) {
+            setMessage({
+                type: 'error',
+                text: err instanceof Error ? err.message : 'Failed to delete user.',
+            })
         } finally {
             setActionLoading(null)
         }
