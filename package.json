@@ -10,8 +10,6 @@
   },
   "dependencies": {
     "@marsidev/react-turnstile": "^1.5.1",
-    "@supabase/ssr": "^0.6.1",
-    "@supabase/supabase-js": "^2.49.4",
     "@tailwindcss/postcss": "^4.1.4",
     "@types/node": "18.18.1",
     "@types/react": "18.2.23",
