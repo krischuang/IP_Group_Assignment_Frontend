@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useUser } from '@/hooks/useAuth'
 import { updateUser } from '@/hooks/useUser'
+import { resetPassword } from '@/actions/password-reset'
 import { useRouter } from 'next/navigation'
 
 export default function Profile() {
@@ -14,6 +15,14 @@ export default function Profile() {
     const [bio, setBio] = useState('')
     const [saving, setSaving] = useState(false)
     const [toast, setToast] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+
+    const [showResetModal, setShowResetModal] = useState(false)
+    const [newPassword, setNewPassword] = useState('')
+    const [confirmPassword, setConfirmPassword] = useState('')
+    const [showNewPw, setShowNewPw] = useState(false)
+    const [showConfirmPw, setShowConfirmPw] = useState(false)
+    const [resetSaving, setResetSaving] = useState(false)
+    const [resetError, setResetError] = useState('')
 
     useEffect(() => {
         if (!loading && !user) {
@@ -55,6 +64,28 @@ export default function Profile() {
         setEditing(false)
     }
 
+    const openResetModal = () => {
+        setNewPassword('')
+        setConfirmPassword('')
+        setResetError('')
+        setShowResetModal(true)
+    }
+
+    const handleResetPassword = async (e: React.FormEvent) => {
+        e.preventDefault()
+        if (!user?.email || !newPassword || newPassword !== confirmPassword) return
+        setResetSaving(true)
+        setResetError('')
+        const result = await resetPassword(user.email, newPassword)
+        setResetSaving(false)
+        if (!result.success) {
+            setResetError(result.error || 'Reset failed.')
+        } else {
+            setShowResetModal(false)
+            setToast({ type: 'success', text: 'Password reset successfully' })
+        }
+    }
+
     if (loading) {
         return (
             <div className="flex min-h-[calc(100vh-68px)] items-center justify-center">
@@ -73,6 +104,7 @@ export default function Profile() {
         : user.email?.charAt(0).toUpperCase()
 
     return (
+        <>
         <div className="relative py-10 sm:py-14">
             <div className="absolute inset-x-0 top-0 h-56 bg-brand-gradient" aria-hidden="true" />
 
@@ -199,18 +231,113 @@ export default function Profile() {
                                     </button>
                                 </>
                             ) : (
-                                <button onClick={() => setEditing(true)} className="btn-primary w-full py-3">
-                                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round">
-                                        <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
-                                        <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
-                                    </svg>
-                                    Edit profile
-                                </button>
+                                <>
+                                    <button onClick={() => setEditing(true)} className="btn-primary flex-1 py-3">
+                                        <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round">
+                                            <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+                                            <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                        </svg>
+                                        Edit profile
+                                    </button>
+                                    <button onClick={openResetModal} className="btn-secondary flex-1 py-3">
+                                        <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round">
+                                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                                            <path d="M7 11V7a5 5 0 0110 0v4" />
+                                        </svg>
+                                        Reset password
+                                    </button>
+                                </>
                             )}
                         </div>
                     </div>
                 </div>
             </div>
         </div>
+
+        {/* Reset Password Modal */}
+        {showResetModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 backdrop-blur-sm" onClick={() => setShowResetModal(false)}>
+                <div className="card w-full max-w-md p-8 shadow-elevated" onClick={(e) => e.stopPropagation()}>
+                    <div className="mb-6 text-center">
+                        <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-brand-gradient text-white shadow-brand-glow">
+                            <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                                <path d="M7 11V7a5 5 0 0110 0v4" />
+                            </svg>
+                        </div>
+                        <h2 className="text-xl font-bold text-ink-900">Reset password</h2>
+                        <p className="mt-1 text-sm text-ink-500">Enter and confirm your new password.</p>
+                    </div>
+
+                    {resetError && (
+                        <div className="mb-4 flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 p-3.5 text-sm text-red-800">
+                            <svg className="mt-0.5 h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+                            </svg>
+                            <span>{resetError}</span>
+                        </div>
+                    )}
+
+                    <form onSubmit={handleResetPassword} className="space-y-4">
+                        <div>
+                            <label htmlFor="new-password" className="field-label">New password</label>
+                            <div className="relative">
+                                <input
+                                    id="new-password"
+                                    type={showNewPw ? 'text' : 'password'}
+                                    value={newPassword}
+                                    onChange={(e) => setNewPassword(e.target.value)}
+                                    placeholder="••••••••"
+                                    required
+                                    autoComplete="new-password"
+                                    className="field-input pr-11"
+                                />
+                                <button type="button" onClick={() => setShowNewPw(v => !v)} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-ink-500 hover:bg-ink-300/20 hover:text-ink-700">
+                                    {showNewPw
+                                        ? <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.94 10.94 0 0112 20c-7 0-11-8-11-8a21.77 21.77 0 015.06-5.94M9.9 4.24A10.94 10.94 0 0112 4c7 0 11 8 11 8a21.77 21.77 0 01-3.17 4.4M1 1l22 22" /><path d="M14.12 14.12A3 3 0 019.88 9.88" /></svg>
+                                        : <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>
+                                    }
+                                </button>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label htmlFor="confirm-password" className="field-label">Confirm password</label>
+                            <div className="relative">
+                                <input
+                                    id="confirm-password"
+                                    type={showConfirmPw ? 'text' : 'password'}
+                                    value={confirmPassword}
+                                    onChange={(e) => setConfirmPassword(e.target.value)}
+                                    placeholder="••••••••"
+                                    required
+                                    autoComplete="new-password"
+                                    className={`field-input pr-11 ${confirmPassword && newPassword !== confirmPassword ? 'border-red-400 focus:border-red-400 focus:ring-red-100' : ''}`}
+                                />
+                                <button type="button" onClick={() => setShowConfirmPw(v => !v)} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-ink-500 hover:bg-ink-300/20 hover:text-ink-700">
+                                    {showConfirmPw
+                                        ? <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.94 10.94 0 0112 20c-7 0-11-8-11-8a21.77 21.77 0 015.06-5.94M9.9 4.24A10.94 10.94 0 0112 4c7 0 11 8 11 8a21.77 21.77 0 01-3.17 4.4M1 1l22 22" /><path d="M14.12 14.12A3 3 0 019.88 9.88" /></svg>
+                                        : <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></svg>
+                                    }
+                                </button>
+                            </div>
+                            {confirmPassword && newPassword !== confirmPassword && (
+                                <p className="mt-1.5 text-xs text-red-600">Passwords do not match.</p>
+                            )}
+                        </div>
+
+                        <div className="flex gap-3 pt-1">
+                            <button type="submit" disabled={resetSaving || !newPassword || newPassword !== confirmPassword} className="btn-primary flex-1 py-3">
+                                {resetSaving ? (
+                                    <><span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />Resetting…</>
+                                ) : 'Reset password'}
+                            </button>
+                            <button type="button" onClick={() => setShowResetModal(false)} className="btn-secondary flex-1 py-3">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        )}
+        </>
     )
 }
