@@ -3,17 +3,14 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { fetchPublicArticlesList } from '@/util/api/publicArticles'
+import type { Article } from '@/types/article'
 
-interface Article {
-    id: string | number
-    title: string
-    summary: string
-    created_at: string
-}
+const PAGE_SIZE = 9
 
 export default function ArticlesPage() {
     const [articles, setArticles] = useState<Article[]>([])
     const [search, setSearch] = useState('')
+    const [page, setPage] = useState(1)
     const [loading, setLoading] = useState(true)
     const [loadError, setLoadError] = useState<string | null>(null)
 
@@ -39,9 +36,13 @@ export default function ArticlesPage() {
         }
     }, [])
 
+    useEffect(() => { setPage(1) }, [search])
+
     const filtered = articles.filter(
         (a) => !search || a.title.toLowerCase().includes(search.toLowerCase()),
     )
+    const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+    const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
     function formatDate(iso: string) {
         return new Date(iso).toLocaleDateString('en-AU', {
@@ -101,7 +102,7 @@ export default function ArticlesPage() {
                                   ? 'No articles on the server yet'
                                   : filtered.length === 0
                                     ? 'No matching articles'
-                                    : `Showing ${filtered.length} ${filtered.length === 1 ? 'article' : 'articles'}`}
+                                    : `Showing ${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, filtered.length)} of ${filtered.length} ${filtered.length === 1 ? 'article' : 'articles'}`}
                         </p>
                         {search && (
                             <button
@@ -157,32 +158,64 @@ export default function ArticlesPage() {
                 )}
 
                 {!loading && filtered.length > 0 && (
-                    <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                        {filtered.map((article) => (
-                            <Link
-                                key={article.id}
-                                href={`/articles/${article.id}`}
-                                className="card-interactive group flex flex-col p-6"
-                            >
-                                <div className="mb-3 flex justify-end">
-                                    <time className="text-xs text-ink-500">{formatDate(article.created_at)}</time>
-                                </div>
-                                <h2 className="line-clamp-2 text-lg font-semibold text-ink-900 transition-colors group-hover:text-brand-700">
-                                    {article.title}
-                                </h2>
-                                <p className="mt-2 line-clamp-3 flex-1 text-sm leading-relaxed text-ink-500">
-                                    {truncate(article.summary, 140)}
-                                </p>
-                                <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-brand-700">
-                                    Read article
-                                    <svg className="h-4 w-4 transition-transform group-hover:translate-x-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round">
+                    <>
+                        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                            {paginated.map((article) => (
+                                <Link
+                                    key={article.id}
+                                    href={`/articles/${article.id}`}
+                                    className="card-interactive group flex flex-col p-6"
+                                >
+                                    <div className="mb-3 flex justify-end">
+                                        <time className="text-xs text-ink-500">{formatDate(article.created_at)}</time>
+                                    </div>
+                                    <h2 className="line-clamp-2 text-lg font-semibold text-ink-900 transition-colors group-hover:text-brand-700">
+                                        {article.title}
+                                    </h2>
+                                    <p className="mt-2 line-clamp-3 flex-1 text-sm leading-relaxed text-ink-500">
+                                        {truncate(article.summary, 140)}
+                                    </p>
+                                    <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-brand-700">
+                                        Read article
+                                        <svg className="h-4 w-4 transition-transform group-hover:translate-x-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round">
+                                            <line x1="5" y1="12" x2="19" y2="12" />
+                                            <polyline points="12 5 19 12 12 19" />
+                                        </svg>
+                                    </span>
+                                </Link>
+                            ))}
+                        </div>
+
+                        {totalPages > 1 && (
+                            <div className="mt-10 flex items-center justify-center gap-3">
+                                <button
+                                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                                    disabled={page === 1}
+                                    className="inline-flex items-center gap-1.5 rounded-lg border border-ink-300/60 px-4 py-2 text-sm font-semibold text-ink-700 transition-colors hover:border-brand-300 hover:text-brand-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                                >
+                                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round">
+                                        <line x1="19" y1="12" x2="5" y2="12" />
+                                        <polyline points="12 19 5 12 12 5" />
+                                    </svg>
+                                    Previous
+                                </button>
+                                <span className="text-sm text-ink-500">
+                                    Page {page} of {totalPages}
+                                </span>
+                                <button
+                                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                                    disabled={page === totalPages}
+                                    className="inline-flex items-center gap-1.5 rounded-lg border border-ink-300/60 px-4 py-2 text-sm font-semibold text-ink-700 transition-colors hover:border-brand-300 hover:text-brand-700 disabled:opacity-40 disabled:cursor-not-allowed"
+                                >
+                                    Next
+                                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round">
                                         <line x1="5" y1="12" x2="19" y2="12" />
                                         <polyline points="12 5 19 12 12 19" />
                                     </svg>
-                                </span>
-                            </Link>
-                        ))}
-                    </div>
+                                </button>
+                            </div>
+                        )}
+                    </>
                 )}
             </div>
         </section>

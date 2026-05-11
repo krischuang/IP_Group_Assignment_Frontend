@@ -5,21 +5,9 @@ import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { fetchPublicArticleById } from '@/util/api/publicArticles'
 import { API_BASE } from '@/util/api/client'
-
-interface Article {
-    id: string | number
-    title: string
-    content: string
-    summary: string
-    created_at: string
-    author_id?: number | null
-    author_name?: string | null
-    users?: { full_name: string; email: string } | null
-    ai_job_id?: string | null
-    ai_summary?: string | null
-    ai_key_points?: string[] | null
-    ai_tags?: string[] | null
-}
+import { useUser } from '@/hooks/useAuth'
+import { listBookmarksAction, createBookmarkAction, deleteBookmarkAction } from '@/actions/bookmarks'
+import type { Article } from '@/types/article'
 
 interface AISummaryResult {
     title: string
@@ -107,6 +95,9 @@ export default function ArticlePage() {
     const [error, setError] = useState<string | null>(null)
     const [jobPoll, setJobPoll] = useState<JobPoll | null>(null)
     const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+    const { user } = useUser()
+    const [isBookmarked, setIsBookmarked] = useState(false)
+    const [bookmarkLoading, setBookmarkLoading] = useState(false)
 
     useEffect(() => {
         if (!id) return
@@ -128,6 +119,34 @@ export default function ArticlePage() {
         })()
         return () => { cancelled = true }
     }, [id])
+
+    useEffect(() => {
+        if (!article || !user) return
+        let cancelled = false
+        ;(async () => {
+            const bookmarks = await listBookmarksAction()
+            if (cancelled || !bookmarks) return
+            setIsBookmarked(bookmarks.some((b) => b.article_id === Number(article.id)))
+        })()
+        return () => { cancelled = true }
+    }, [article, user])
+
+    const toggleBookmark = async () => {
+        if (!user || !article || bookmarkLoading) return
+        setBookmarkLoading(true)
+        const numId = Number(article.id)
+        try {
+            if (isBookmarked) {
+                const res = await deleteBookmarkAction(numId)
+                if (res.ok) setIsBookmarked(false)
+            } else {
+                const res = await createBookmarkAction(numId)
+                if (res.ok) setIsBookmarked(true)
+            }
+        } finally {
+            setBookmarkLoading(false)
+        }
+    }
 
     useEffect(() => {
         if (!article?.ai_job_id || article.ai_summary) return
@@ -250,19 +269,38 @@ export default function ArticlePage() {
                         {article.title}
                     </h1>
 
-                    <div className="mt-6 flex flex-wrap items-center gap-3 text-sm text-ink-500">
-                        {byline ? (
-                            <>
-                                <span className="inline-flex items-center gap-1.5">
-                                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-100 text-[0.65rem] font-bold uppercase text-brand-700">
-                                        {byline.charAt(0)}
+                    <div className="mt-6 flex flex-wrap items-center justify-between gap-3 text-sm text-ink-500">
+                        <div className="flex flex-wrap items-center gap-3">
+                            {byline ? (
+                                <>
+                                    <span className="inline-flex items-center gap-1.5">
+                                        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-brand-100 text-[0.65rem] font-bold uppercase text-brand-700">
+                                            {byline.charAt(0)}
+                                        </span>
+                                        <span className="font-medium text-ink-700">{byline}</span>
                                     </span>
-                                    <span className="font-medium text-ink-700">{byline}</span>
-                                </span>
-                                <span aria-hidden="true" className="h-1 w-1 rounded-full bg-ink-300" />
-                            </>
-                        ) : null}
-                        <span>{formatDate(article.created_at)}</span>
+                                    <span aria-hidden="true" className="h-1 w-1 rounded-full bg-ink-300" />
+                                </>
+                            ) : null}
+                            <span>{formatDate(article.created_at)}</span>
+                        </div>
+                        {user && (
+                            <button
+                                onClick={toggleBookmark}
+                                disabled={bookmarkLoading}
+                                aria-label={isBookmarked ? 'Remove bookmark' : 'Bookmark this article'}
+                                className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                                    isBookmarked
+                                        ? 'border-brand-300 bg-brand-50 text-brand-700 hover:bg-brand-100'
+                                        : 'border-ink-300/60 bg-white text-ink-600 hover:border-brand-300 hover:text-brand-700'
+                                }`}
+                            >
+                                <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill={isBookmarked ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z" />
+                                </svg>
+                                {isBookmarked ? 'Bookmarked' : 'Bookmark'}
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>

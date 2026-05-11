@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Turnstile, TurnstileInstance } from '@marsidev/react-turnstile'
 import { signUpWithEmail } from '@/actions/auth'
 import Link from 'next/link'
+import PasswordInput from '@/components/PasswordInput'
 
 const TURNSTILE_SITE_KEY = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? ''
 
@@ -17,7 +18,6 @@ export default function SignUp() {
     const [errorMessage, setErrorMessage] = useState('')
     const [successMessage, setSuccessMessage] = useState('')
     const [turnstileToken, setTurnstileToken] = useState('')
-    const [showPassword, setShowPassword] = useState(false)
     const turnstileRef = useRef<TurnstileInstance>(null)
     const router = useRouter()
 
@@ -155,37 +155,15 @@ export default function SignUp() {
 
                     <div>
                         <label htmlFor="password" className="field-label">Password</label>
-                        <div className="relative">
-                            <input
-                                id="password"
-                                type={showPassword ? 'text' : 'password'}
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                placeholder="At least 6 characters"
-                                required
-                                minLength={6}
-                                autoComplete="new-password"
-                                className="field-input pr-11"
-                            />
-                            <button
-                                type="button"
-                                onClick={() => setShowPassword((p) => !p)}
-                                aria-label={showPassword ? 'Hide password' : 'Show password'}
-                                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-ink-500 transition-colors hover:bg-ink-300/20 hover:text-ink-700"
-                            >
-                                {showPassword ? (
-                                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                        <path d="M17.94 17.94A10.94 10.94 0 0112 20c-7 0-11-8-11-8a21.77 21.77 0 015.06-5.94 M9.9 4.24A10.94 10.94 0 0112 4c7 0 11 8 11 8a21.77 21.77 0 01-3.17 4.4 M1 1l22 22" />
-                                        <path d="M14.12 14.12A3 3 0 019.88 9.88" />
-                                    </svg>
-                                ) : (
-                                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                                        <circle cx="12" cy="12" r="3" />
-                                    </svg>
-                                )}
-                            </button>
-                        </div>
+                        <PasswordInput
+                            id="password"
+                            value={password}
+                            onChange={setPassword}
+                            placeholder="At least 6 characters"
+                            required
+                            minLength={6}
+                            autoComplete="new-password"
+                        />
                         {password && (
                             <div className="mt-2 flex items-center gap-2">
                                 <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-ink-300/30">
@@ -198,16 +176,15 @@ export default function SignUp() {
 
                     <div>
                         <label htmlFor="confirmPassword" className="field-label">Confirm password</label>
-                        <input
+                        <PasswordInput
                             id="confirmPassword"
-                            type={showPassword ? 'text' : 'password'}
                             value={confirmPassword}
-                            onChange={(e) => setConfirmPassword(e.target.value)}
+                            onChange={setConfirmPassword}
                             placeholder="Re-enter password"
                             required
                             minLength={6}
                             autoComplete="new-password"
-                            className={`field-input ${confirmPassword && password !== confirmPassword ? 'border-red-300 focus:border-red-400 focus:ring-red-100' : ''}`}
+                            error={!!(confirmPassword && password !== confirmPassword)}
                         />
                         {confirmPassword && password !== confirmPassword && (
                             <p className="mt-1.5 text-xs text-red-600">Passwords do not match</p>

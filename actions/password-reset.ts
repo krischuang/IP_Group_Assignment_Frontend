@@ -1,6 +1,7 @@
 "use server"
 
 import crypto from 'crypto'
+import { cookies } from 'next/headers'
 import { API_BASE } from '@/util/api/client'
 
 async function encryptPassword(password: string): Promise<string> {
@@ -75,5 +76,30 @@ export async function resetPassword(email: string, newPassword: string) {
         return { success: true, message: data.message as string }
     } catch (err: any) {
         return { success: false, error: err.message ?? 'Reset failed' }
+    }
+}
+
+/** Change password for an already-authenticated user. Calls POST /auth/me/password. */
+export async function changePassword(newPassword: string) {
+    try {
+        const jar = await cookies()
+        const token = jar.get('auth_token')?.value
+        if (!token) return { success: false, error: 'Not signed in.' }
+        const encryptedPassword = await encryptPassword(newPassword)
+        const res = await fetch(`${API_BASE}/auth/me/password`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ new_password: encryptedPassword }),
+        })
+        if (!res.ok) {
+            return { success: false, error: await parseErrorMessage(res, 'Change failed') }
+        }
+        const data = await res.json()
+        return { success: true, message: data.message as string }
+    } catch (err: any) {
+        return { success: false, error: err.message ?? 'Change failed' }
     }
 }

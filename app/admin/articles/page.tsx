@@ -6,15 +6,7 @@ import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { createArticleAction, deleteArticleAction, updateArticleAction } from '@/actions/articles'
 import { fetchPublicArticlesList } from '@/util/api/publicArticles'
-
-interface Article {
-    id: string
-    title: string
-    summary: string
-    content: string
-    created_at: string
-    updated_at?: string
-}
+import type { Article } from '@/types/article'
 
 interface ArticleForm {
     title: string
@@ -122,9 +114,9 @@ export default function AdminArticles() {
     const handleEdit = (article: Article) => {
         setForm({
             title: article.title,
-            content: article.content,
+            content: article.content ?? '',
         })
-        setEditingId(article.id)
+        setEditingId(String(article.id))
         setShowForm(true)
         window.scrollTo({ top: 0, behavior: 'smooth' })
     }
@@ -330,9 +322,9 @@ export default function AdminArticles() {
                                                         </svg>
                                                     </button>
 
-                                                    {deleteConfirm === article.id ? (
+                                                    {deleteConfirm === String(article.id) ? (
                                                         <div className="flex items-center gap-1">
-                                                            <button type="button" onClick={() => handleDelete(article.id)} className="rounded-lg bg-red-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-red-700">
+                                                            <button type="button" onClick={() => handleDelete(String(article.id))} className="rounded-lg bg-red-600 px-2.5 py-1.5 text-xs font-semibold text-white hover:bg-red-700">
                                                                 Confirm
                                                             </button>
                                                             <button type="button" onClick={() => setDeleteConfirm(null)} className="rounded-lg bg-ink-300/30 px-2.5 py-1.5 text-xs font-semibold text-ink-700">
@@ -340,7 +332,7 @@ export default function AdminArticles() {
                                                             </button>
                                                         </div>
                                                     ) : (
-                                                        <button type="button" onClick={() => setDeleteConfirm(article.id)} className="rounded-lg p-2 text-ink-700 hover:bg-red-50 hover:text-red-600" title="Delete">
+                                                        <button type="button" onClick={() => setDeleteConfirm(String(article.id))} className="rounded-lg p-2 text-ink-700 hover:bg-red-50 hover:text-red-600" title="Delete">
                                                             <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                                                 <polyline points="3 6 5 6 21 6" />
                                                                 <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />

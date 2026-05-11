@@ -3,14 +3,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import { fetchPublicArticlesList } from '@/util/api/publicArticles'
-
-interface Article {
-    id: string | number
-    title: string
-    summary: string
-    created_at: string
-    author_id?: number
-}
+import type { Article } from '@/types/article'
 
 export default function Home() {
     const [articles, setArticles] = useState<Article[]>([])
