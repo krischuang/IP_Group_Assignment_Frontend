@@ -95,6 +95,14 @@ export default function AdminArticles() {
                 : await createArticleAction(payload)
             if (!result.ok) throw new Error(result.error)
 
+            if (!editingId && result.ok) {
+                const articleId = result.article.id ?? result.article.article_id
+                if (articleId) {
+                    router.push(`/articles/${articleId}`)
+                    return
+                }
+            }
+
             setMessage({
                 type: 'success',
                 text: editingId ? 'Article updated successfully.' : 'Article created successfully.',
@@ -309,6 +317,12 @@ export default function AdminArticles() {
                                             </td>
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center justify-end gap-1">
+                                                    <Link href={`/articles/${article.id}`} className="rounded-lg p-2 text-ink-700 hover:bg-brand-50 hover:text-brand-700" title="View">
+                                                        <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                                            <circle cx="12" cy="12" r="3" />
+                                                        </svg>
+                                                    </Link>
                                                     <button type="button" onClick={() => handleEdit(article)} className="rounded-lg p-2 text-ink-700 hover:bg-brand-50 hover:text-brand-700" title="Edit">
                                                         <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                                             <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />

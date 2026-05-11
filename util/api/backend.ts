@@ -45,6 +45,10 @@ export function normalizeArticleResponse(raw: Record<string, unknown>): Record<s
         published: typeof raw.published === 'boolean' ? raw.published : true,
         created_at,
         updated_at,
+        ai_job_id: typeof raw.ai_job_id === 'string' ? raw.ai_job_id : null,
+        ai_summary: typeof raw.ai_summary === 'string' ? raw.ai_summary : null,
+        ai_key_points: Array.isArray(raw.ai_key_points) ? raw.ai_key_points as string[] : null,
+        ai_tags: Array.isArray(raw.ai_tags) ? raw.ai_tags as string[] : null,
     }
 }
 
