@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { fetchPublicArticleById } from '@/util/api/publicArticles'
+import { API_BASE } from '@/util/api/client'
 
 interface Article {
     id: string | number
@@ -136,7 +137,7 @@ export default function ArticlePage() {
 
         const poll = async () => {
             try {
-                const res = await fetch(`/bff/ai-tools/summary/jobs/${jobId}`)
+                const res = await fetch(`${API_BASE}/ai-tools/summary/jobs/${jobId}`)
                 if (!res.ok || stopped) return
                 const data: JobPoll = await res.json()
                 setJobPoll(data)
