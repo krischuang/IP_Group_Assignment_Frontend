@@ -1,8 +1,8 @@
-# UTSFE — Frontend
+# UTSFE: Frontend
 
 UTSFE (UTS Frontend Engineering) is a content-publishing platform where users can browse and read articles, manage their profile, and reset their password via email OTP. Administrators get a dedicated dashboard for publishing articles and managing user accounts. This repository contains the **Next.js frontend**.
 
-**Problem it solves:** Delivers a seamless, single-page-application experience on top of the UTSFE backend API — handling JWT-based authentication, live client-side search, RSA-encrypted password submission, Cloudflare Turnstile bot protection, and real-time AI summary progress polling.
+**Problem it solves:** Delivers a seamless, single-page-application experience on top of the UTSFE backend API: handling JWT-based authentication, live client-side search, RSA-encrypted password submission, Cloudflare Turnstile bot protection, and real-time AI summary progress polling.
 
 ---
 
@@ -182,7 +182,7 @@ IP_Group_Assignment_Frontend/
 1. User submits email + RSA-encrypted password + Turnstile token via a Server Action.
 2. Server Action forwards the request to `POST /auth/login` on the backend.
 3. On success, the JWT is stored in an HTTP-only cookie (`auth_token`).
-4. `middleware.ts` decodes the JWT from the cookie on every request — no round-trip to the backend needed for most routes.
+4. `middleware.ts` decodes the JWT from the cookie on every request: no round-trip to the backend needed for most routes.
 5. Admin routes additionally verify the `role` claim; if absent in the token, middleware re-fetches `GET /auth/me`.
 
 ## Routing
